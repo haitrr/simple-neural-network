@@ -22,13 +22,18 @@ class BackPropagationNetwork:
         self.layerCount=len(layerSize) -1
         self.shape = layerSize
 
-        #Input/Ouput data from the last run
+        #Data from the last run
         self._layerInput = []
         self._layerOutput = []
+        self._previousWeightDelta = []
+
 
         #Create the weight arrays
         for(l1,l2) in zip(layerSize[:-1],layerSize[1:]):
             self.weights.append(np.random.normal(scale=0.1,size= (l2,l1+1)))
+            self._previousWeightDelta.append(np.zeros((l2,l1-1)))
+
+
     #
     #Run method
     #
@@ -54,7 +59,7 @@ class BackPropagationNetwork:
     #
     #TrainEpoch method
     #
-    def TranEpoch(self,input,target,trainingRate = 0.2):
+    def TranEpoch(self,input,target,trainingRate = 0.2,momentum = 0.5):
         """This method train the network for one epoch"""
 
         delta = []
@@ -83,10 +88,13 @@ class BackPropagationNetwork:
                 layerOutput = np.vstack([input.T,np.ones([1,lnCase ])])
             else:
                 layerOutput = np.vstack([self._layerOutput[index - 1],np.ones([1,self._layerOutput[index - 1].shape[1]])])
-            weightDelta = np.sum(
+            curWeightDelta = np.sum(
                 layerOutput[None,:,:].transpose(2,0,1) * delta[delta_index][None,:,:].transpose(2,1,0)
                 ,axis = 0)
-            self.weights[index] -= trainingRate * weightDelta
+            weightDelta = trainingRate * curWeightDelta + momentum * self._previousWeightDelta[index]
+            self.weights[index] -= weightDelta
+
+            self._previousWeightDelta[index] = weightDelta
         return error
 
     #Transfer function
@@ -112,7 +120,7 @@ if __name__ == "__main__":
     lnMax = 100000
     lnError = 0.00001
     for i in range(lnMax + 1):
-        err = bpn.TranEpoch(lvInput,lvTarget)
+        err = bpn.TranEpoch(lvInput,lvTarget,momentum=0.7)
         if i % 2500 == 0:
             print("Iteration {0}\tError: {1:0.6f}".format(i,err))
         if err <= lnError:
